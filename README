@@ -1,0 +1,10 @@
+This file contains a description of each file in this repo, and the skills learned from. Only useful/worthwhile files are included.
+
+'Chi2_fit_to_data.py' - Python script that computes the Chi-squared value of a set of bivariate data
+      > Skills learned:
+        - Intro to arrays, replacement fields, measures of statistical relevance
+        
+'Curve_fit.py' - Using Least-Squares-Fit-Regression(LSFR) to define a function
+      > Skills learned:
+        - Defining a function, better proficiency with matplotlib, how to learn a set of functions quickly.
+      
