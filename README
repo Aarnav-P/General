@@ -11,3 +11,11 @@ This file contains a description of each file in this repo, and the skills learn
 'Boltzmann.py' - Used for a lab experiment to determine the value of Boltzmann's constant and absolute zero. 
       > Skills learned:
         - Synthesising previous skills, introduction to pandas module and the dataframe (df) storage type
+
+'pytorch 1 - tensors.py' - The start of my endeavour to learn and be able to fluidly use Machine Learning techniques. 
+   # "Why pytorch and not tensorflow?
+   # pytorch is less automated, I am aiming to get a fuller understanding of how using machine learning actually
+     works in practice, so that I can independently use it for any project I decide to apply it to."
+      > Skills learned
+        - Understanding what a tensor object is in pytorch, broadcasting rules for tensors, advantages of tensors over arrays, some basic ML concepts 
+        (weighting, averaging over data sets by using  multi-dim tensors)
