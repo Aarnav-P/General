@@ -31,7 +31,7 @@ lines = {'lw' : 1,
          'ls' : '-',}
 
 mpl.rc('font', **font) # changes formatting of mplb
-mpl.rd('lines', **lines)
+mpl.rc('lines', **lines)
 
 # define a function to fit to: 
 def func(x, a, b, c):
