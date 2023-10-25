@@ -39,7 +39,7 @@ import time
 
 # what is broadcasting?
 # =============================================================================
-# # numpy operates on two arrays if they are equal, or one array is equal to 1
+# # numpy operates on two arrays if the dimensions are equal, or one array dim is equal to 1
 # # therefore, multiplication (for example) is element-wise
 # # i.e.
 #
@@ -55,7 +55,7 @@ import time
 # 
 # print(c+d)
 #
-# # i.e. operating on an array dimension order 1 with order n stretches the order 1 array n times 
+# # i.e. operating on an array dimension order 1 with order n stretches or repeats the order 1 array n times. Make sure to print to see this
 # 
 # # similarly:
 #
@@ -77,9 +77,12 @@ import time
 # 
 # # Say you have two images
 #
-# pics = torch.randint(0,256,(2,256,256,3))
-# scales = torch.tensor([1.5,2,0.5,0.5,2,1.5]).reshape(2,1,1,3) # by our previous rules, this now broadcasts with pics
+# pics = torch.randint(0,256,(2,256,256,3)) # args: low,high,size/shape
+# print(pics.shape) # note .shape is an attribute not a method for torchtensors
+# scales = torch.tensor([1.5,2,0.5,0.5,2,1.5]).reshape(2,1,1,3) 
 # print(scales)
+# by our previous rules, this now broadcasts with pics
+# print(((scales*pics)-pics)/pics) # pay close attention to signs to prove this worked
 # =============================================================================
 
 # n.b. trying to mix arrays and tensors will give a concatenation error or something similar, due to different dtypes
@@ -96,7 +99,8 @@ import time
 # # e.g. to take means for the first element in each row (mean of a column), the axis is 0
 # 
 # nums = torch.arange(20, dtype= float).reshape(5,4) #arange defaults dtype to torch.int64, for some reason doesn't like not using float in multidim?
-# print(torch.mean(nums, axis=0))
+# print(nums)
+# print(torch.mean(nums, axis=0)) # since this is a 2D tensor, only axis=0,1 will work.
 # 
 # images = torch.randn((5,256,256,3))
 # # say we want the mean of the R value across all 256 pixels over 5 images
@@ -134,8 +138,9 @@ import time
 
 x = torch.tensor([[3,4],[5,6]], dtype = float, requires_grad=True) # note only float and complex data can req gradients
 y = (x**3).sum()
-y.backward() # computes gradient (STORED IN X ITSELF)
-# print(x.grad) # this returns 3(x_i)**2 as expected
+y.backward() # computes gradient of y wrt x (STORED IN X ITSELF)
+print(x.grad) # this returns 3(x_i)**2 as expected
+
 
 # this is relevant because x will store the weights of every element 
 # for machine learning, this is a good way to automatically keep track of how some small changes affects other tensors
@@ -167,12 +172,6 @@ for i in range(10):
 print(torch.mean(vals))
 
 # not exactly the fastest computation but the mean value I got from averaging 1000 results was that pytorch was 2.0182x quicker
-
-
-
-
-
-
 
 
 
