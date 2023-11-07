@@ -31,3 +31,5 @@ This file contains a description of each file in this repo, and the skills learn
         - Creating basic NN's, Simple loss and optimisation function, Purpose and limitations of NN's
       > To-do:
         - Understanding classes, subclasses etc. and OOP better.  
+
+'classes.py' - Starting back on the ML path. Needed to address the issue of understanding classes that was outlined in 'pytorch 2...'
