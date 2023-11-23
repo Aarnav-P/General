@@ -104,4 +104,4 @@ print(f"The cross entropy for this exponentially normalised example is {L3}")
 L = torch.nn.CrossEntropyLoss(reduction='sum')
 print(L((torch.tensor(yhat)), torch.tensor(p, dtype= torch.float)))
 
-#TBC
+# With a pixel key for an image, this could eb used to perform image 'segmentation'.
