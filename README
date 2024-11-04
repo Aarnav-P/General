@@ -49,3 +49,7 @@ OLDEST TO NEWEST:
 
 'a07380ap_zboson.py' - I try to avoid posting mundane lab scripts now, but this piece of code was a very large step up for me in terms of functional, recursive, and more efficient programming.
                        Additionally, there are much, much better graphical visualisations here, so I think it serves well enough as a progress update. 
+
+'Plotting_mega.py' - A nice general purpose piece of code for data plotting. Handles 2D data with 1 or both uncertainties, linear or non-linear, and provides curve-fitting and chi-squared calculations.
+                     Functionalities like peak-finding have been and will be added as required.
+                     Credit to Lukas Wystemp for the outline and idea.
