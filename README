@@ -1,4 +1,5 @@
 This file contains a description of each file in this repo, and the skills learned from. Only files that can demonstrate useful/worthwhile progress are included.
+OLDEST TO NEWEST:
 
 'Chi2_fit_to_data.py' - Python script that computes the Chi-squared value of a set of bivariate data
       > Skills learned:
@@ -47,4 +48,4 @@ This file contains a description of each file in this repo, and the skills learn
             - Previous matrices were effectively only 1 independent parameter, need to introduce some sort of non-linearity AB(A) so that AB is not computatable as one matrix C
 
 'a07380ap_zboson.py' - I try to avoid posting mundane lab scripts now, but this piece of code was a very large step up for me in terms of functional, recursive, and more efficient programming.
-                       Additionally, there are much, much better graphical visualisations here, so I think it serves well enough as a progress update.
+                       Additionally, there are much, much better graphical visualisations here, so I think it serves well enough as a progress update. 
