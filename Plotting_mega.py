@@ -1,5 +1,7 @@
-# Import Files
-FILES = ['lambert_law.csv'] 
+# %% Globals
+
+FILES = ['2.txt'] 
+DELIMITER = ';'
 SKIPHEADER = 1 # 1 for yes, 0 for no
 # Set Data Limits in xdata
 TRUNCATE_DATA_X = False
@@ -16,9 +18,9 @@ DATA_Y_RANGE_HIGH = 2
 ANALYSE_FIT = True
 
 # Plot specification
-PLOT_NAME = 'lambert_law'
-NAME_OF_FIGURE_DATA = 'lambert_law' # Saves as
-MARKERSIZE = 5
+PLOT_NAME = 'Peaks '
+NAME_OF_FIGURE_DATA = 'Peaks x_mm' # Saves as
+MARKERSIZE = 1
 
 PLOT_X_LIMITS = False
 PLOT_Y_LIMITS = False
@@ -27,28 +29,29 @@ X_LIM_HIGHER = 10
 Y_LIM_LOWER = 0.001
 Y_LIM_HIGHER = 0.002
 
-X_LABEL = "Measured Voltage"
-Y_LABEL = "$V_0 \cos θ$"
+X_LABEL = "x /mm"
+Y_LABEL = "Intensity /arb. units"
 
 # Nature of the data
-LINEAR = True # will automatically attempt fit; will error unless true linear
+LINEAR = False # will automatically attempt fit; will error unless true linear
 
 # Non linear fits
 ATTEMPT_FIT = False # Fitting can be attempted with two parameters; Write function() first
 PARAMETER_ESTIMATE = [80, 5]
 
 # Find peaks/troughs
-FIND_PEAKS = False
+DATA_SMOOTHING = True
+PROCESS = "Gaussian" #Options are Gaussian and Rolling_average
+WINDOW_SIZE = 3
+FIND_PEAKS = True
 FIND_TROUGHS = False
-PROMINENCE = 0.07
+PROMINENCE = 5
 
 # Note about data formatting:
 # For files of dimension 2 - x, y
 # For files of dimension 3 - x, y, y_uncertainties
 # For files of dimension 4 - x, y, x_uncertainties, y_uncertainties
-
-### IMPORTS
-
+# %% IMPORTS
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
@@ -57,53 +60,21 @@ from scipy import odr
 from scipy.signal import find_peaks
 from scipy.odr import *
 from scipy.optimize import curve_fit
-
-
-### FUNCTIONS ###
-
-def clean_data(data, file_dimension):
-    """
-    Clean up data by removing NaN values and duplicates.
-
-    Args:
-        data (numpy.ndarray): Input data array.
-
-    Returns:
-        numpy.ndarray: Cleaned data array.
-    """
-    #Remove text and nans
-    data = data[~np.isnan(data).any(axis=1)]
-    
-    # Remove duplicates
-    _, unique_indices = np.unique(data[:, 0], return_index=True)
-    data = data[unique_indices]
-
-    # Sort data from lowest energy to highest energy
-    data = data[np.lexsort((data[:, 0],))]
-    
-    if file_dimension == 3:
-        zero_index = np.where((data[:,1] == 0) | (data[:,2] <= 0))[0]
-        data = np.delete(data, zero_index, 0)
-        
-    elif file_dimension == 4:
-        zero_index = np.where((data[:, 2] <= 0) | (data[:, 3] <= 0))[0]
-        data = np.delete(data, zero_index, 0)
-    
-    
-    
-    return data
-
+import seaborn as sns
+from scipy.ndimage import gaussian_filter1d
+# %% FUNCTIONS 
 
 def read_and_check_files(validated_files):
     
     try:
         
-        input_file = np.genfromtxt(validated_files[0], delimiter = ',', skip_header = SKIPHEADER)
+        input_file = np.genfromtxt(validated_files[0], delimiter = DELIMITER, skip_header = SKIPHEADER)
     except FileNotFoundError:
         print(f"Error: the file {validated_files[0]} could not be found. Check spelling")
         sys.exit()
-    
-    
+        
+    input_file = np.delete(input_file, 0, axis=1)
+    print("data read has been altered for this script")        
     if input_file.shape[1] == 2:
         # Handle (x, y) format
         file_dimension = 2
@@ -131,8 +102,10 @@ def read_and_check_files(validated_files):
     for file_name in validated_files:
         try:
             # Read data from file
-            input_file = np.genfromtxt(file_name, delimiter = ',',
+            input_file = np.genfromtxt(file_name, delimiter = DELIMITER,
                                        skip_header = 0)
+            print("data read has been altered for this script")
+            input_file = np.delete(input_file, 0, axis=1)
             data = np.vstack((data, input_file))
 
         except FileNotFoundError:
@@ -145,9 +118,39 @@ def read_and_check_files(validated_files):
         
             print(len(data))
 
-    
+    print("data read")
     return data, file_dimension
 
+def clean_data(data, file_dimension):
+    """
+    Clean up data by removing NaN values and duplicates.
+
+    Args:
+        data (numpy.ndarray): Input data array.
+
+    Returns:
+        numpy.ndarray: Cleaned data array.
+    """
+    #Remove text and nans
+    data = data[~np.isnan(data).any(axis=1)]
+    
+    # Remove duplicates
+    _, unique_indices = np.unique(data[:, 0], return_index=True)
+    data = data[unique_indices]
+
+    # Sort data from lowest x value to highest x_value
+    data = data[np.lexsort((data[:, 0],))]
+    
+    if file_dimension == 3:
+        zero_index = np.where((data[:,1] == 0) | (data[:,2] <= 0))[0]
+        data = np.delete(data, zero_index, 0)
+        
+    elif file_dimension == 4:
+        zero_index = np.where((data[:, 2] <= 0) | (data[:, 3] <= 0))[0]
+        data = np.delete(data, zero_index, 0)
+    
+    print("data cleaned")    
+    return data
 
 def truncate(data):
     """
@@ -179,71 +182,35 @@ def truncate(data):
         indices_to_keep = np.logical_and(data[:, 1] >= DATA_Y_RANGE_LOW, data[:, 1] <= DATA_Y_RANGE_HIGH)
         
         data = data[indices_to_keep]
-
+        
+    print("data truncated")
     return data
-
-
 
 def plot_data(data, fit_values):
     
+    sns.set_style("darkgrid")
     # Plot data points
     if LINEAR:
-        fig, (ax, ax_residuals) = plt.subplots(2, 1, figsize=(8, 8), gridspec_kw={'height_ratios': [3, 1]})
-        ax.errorbar(data[:, 0], data[:, 1], fmt='x', xerr = X_ERR, yerr = Y_ERR, markersize = MARKERSIZE, label="Data ", color='#6c5b7b')
+        fig, (ax, ax_residuals) = plt.subplots(2, 1, figsize=(8, 8),
+                                               gridspec_kw={'height_ratios': [3, 1]})
+        ax.errorbar(data[:, 0], data[:, 1], fmt='x', xerr = X_ERR, yerr = Y_ERR,
+                    markersize = MARKERSIZE, label="Measured Data", color='#6c5b7b')
     else:
         fig, ax = plt.subplots(1,1)
-        ax.plot(data[:,0], data[:,1], markersize = MARKERSIZE, marker = 'x', label = "Data", color = 'blue')
-
-    
+        ax.errorbar(data[:, 0], data[:, 1], yerr=data[:, 2], fmt='x', alpha = 0.75, 
+                      markersize=MARKERSIZE, label='Measured data', color='orangered')
+    if FIND_PEAKS:
+        ax.scatter(peak_coords[:,0], peak_coords[:,1], marker = 'P', 
+                   s = MARKERSIZE+10, color = 'blue', label='Identified peaks')            
     if np.any(fit_values) and not LINEAR:
         ax.plot(data[:,0], fit_values, label = "Fit function", color = '#355c7d')
     else:
         None
 
-    # Set axis labels
-    ax.set_xlabel(X_LABEL)
-    ax.set_ylabel(Y_LABEL)
-
-    # Add legend
-    ax.legend(loc='lower right', shadow=True)
-
-    # Set title
-    ax.set_title(PLOT_NAME, fontweight='bold')
-
-    # Enable grid
-    ax.grid(True, linestyle=(0, (3, 5, 1, 5)), linewidth=0.5, color='grey')
-
-    # Set axis limit
-    if PLOT_X_LIMITS:
-        ax.set_xlim(X_LIM_LOWER, X_LIM_HIGHER)
-    if PLOT_Y_LIMITS:
-        ax.set_ylim(Y_LIM_LOWER, Y_LIM_HIGHER)
-
     if LINEAR and (file_dimension == 3 or file_dimension == 4):
         fig, (ax, ax_residuals) = plt.subplots(2, 1, figsize=(8, 8), gridspec_kw={'height_ratios': [3, 1]})
-
-        if PLOT_X_LIMITS:
-            ax.set_xlim(X_LIM_LOWER, X_LIM_HIGHER)
-        if PLOT_Y_LIMITS:
-            ax.set_ylim(Y_LIM_LOWER, Y_LIM_HIGHER)
-
-
-
         ax.errorbar(data[:, 0], data[:, 1], fmt='x', xerr = X_ERR, yerr = Y_ERR, markersize = MARKERSIZE, label="Data values", color='#6c5b7b')
         ax.plot(data[:,0], fit_values, label = "Fit function", color = '#355c7d')
-        # Set axis labels
-        ax.set_xlabel(X_LABEL)
-        ax.set_ylabel(Y_LABEL)
-
-        # Add legend
-        ax.legend(loc='lower right', shadow=True)
-
-        # Set title
-        ax.set_title(PLOT_NAME, fontweight='bold')
-
-        # Enable grid
-        ax.grid(True, linestyle=(0, (3, 5, 1, 5)), linewidth=0.5, color='grey')
-        
         
         residuals = data[:,1] - fit_values  # Compute residuals
         ax_residuals.errorbar(data[:,0], residuals, yerr=data[:,3], fmt='x', color='black')
@@ -253,18 +220,40 @@ def plot_data(data, fit_values):
     
         # Adjust spacing between subplots
         fig.subplots_adjust(hspace=0.3)
-        fig.savefig(NAME_OF_FIGURE_DATA, dpi = 300)
-        print("print")
-        plt.show()
-        print("display")
     
+    # Set axis labels
+    ax.set_xlabel(X_LABEL)
+    ax.set_ylabel(Y_LABEL)
+    
+    # Add legend
+    ax.legend(loc='upper left', shadow=True, edgecolor='saddlebrown')
+
+    # Set title
+    ax.set_title(PLOT_NAME, fontweight='bold')
+
+    # Enable grid
+    ax.grid(True, linestyle=(0, (3, 5, 1, 5)), linewidth=0.5, color='grey')
+    
+    # Outline axes
+    ax.spines['right'].set_color((.6, .6, .6))
+    ax.spines['top'].set_color((.6, .6, .6))
+    ax.spines['left'].set_color((0, 0, 0))
+    ax.spines['bottom'].set_color((0, 0, 0))
+    
+    # Set axis limit
+    if PLOT_X_LIMITS:
+        ax.set_xlim(X_LIM_LOWER, X_LIM_HIGHER)
+    if PLOT_Y_LIMITS:
+        ax.set_ylim(Y_LIM_LOWER, Y_LIM_HIGHER)
 
 
 
-    # Save and show plot
-    fig.savefig(NAME_OF_FIGURE_DATA, dpi=300)
+    fig.savefig(NAME_OF_FIGURE_DATA, dpi = 300)
+    print("print")
     plt.show()
-
+    print("display")
+    
+    return None
 
 def chi_squared_function(x_data, y_data, y_uncertainties, parameters):
     """Calculates the chi squared for the data given, assuming a linear
@@ -340,7 +329,6 @@ def plot_linear_data(data, parameter_uncertainties):
 
     plt.savefig(NAME_OF_FIGURE_DATA)
     plt.show()
-
 
 def define_error_plotting(file_dimension):
     global Y_ERR
@@ -543,31 +531,34 @@ def linear_odr_fitting(data, file_dimension):
     return None
 
 def non_linear_odr_function(parameter, x_data):
-
+    """Desired fitting function for ODR"""
     a , b, c = parameter
     return a*(x_data - b)**2 + c
 
 def odr_fitting(data, file_dimension):
+    """
+    Parameters: data: Numpy Array, file_dimension: int 
+    Returns: ODR fit with 2D chi_squared
+    """
     quad_model = Model(non_linear_odr_function)
-    
-    
     odr_data = RealData(data[:,0], data[:,1], sx=data[:,2], sy=data[:,3])
     odr = ODR(odr_data, quad_model, beta0=[-300, 1.4, 15000])
     out = odr.run()
     #out.pprint()
-    
-    
     define_error_plotting(file_dimension)
     plot_data(data, non_linear_odr_function(out.beta, data[:,0]))
-    
-    
-    
     #parameters, _ = sc.curve_fit(non_linear_odr_function, data[:,0], data[:,1], p0 = [-3, 1.4, 20000])
-    
-    
-    
     return None
 
+def smoothing(data, PROCESS):
+    if PROCESS == "Gaussian":
+        data [:,1] = gaussian_filter1d(data[:,1], sigma=25, order=0)
+        print("Data smoothed with Gaussian filter")
+    if PROCESS == "Rolling_average":
+        data[:,1]= np.convolve(data[:,1], np.ones(WINDOW_SIZE) / WINDOW_SIZE, mode='valid')
+        print("Data smoothed with rolling average")
+    return data
+    
 def analyse_fit(pars, par_unc):
     current_analysis = "Stefan Boltzmann constant"
     if ANALYSE_FIT == True:
@@ -582,13 +573,34 @@ def analyse_fit(pars, par_unc):
         print("True value: 5.670367 × 10−8 W m−2 K−4")
     return 0 
 
+# %% Main
 data, file_dimension = read_and_check_files(FILES)
+# non standard data processing goes here
+# CHECK THIS BEFORE TRANSFERRING CODE OVER
+print("This script has additional modifications")
+standard_uncertainty = 0.1
+new_column = np.full((data.shape[0], 1), standard_uncertainty)
+data = np.hstack((data, new_column))
 data = clean_data(data, file_dimension)
-#data[:,3] = 0.001*data[:,3]
-#print(data)
-
 data = truncate(data)
 
+
+if DATA_SMOOTHING:
+    data = smoothing(data, PROCESS)
+
+if FIND_PEAKS:
+    x_max, y_max = find_maxima(data)
+    peak_coords = np.zeros((len(x_max),2))
+    for i in range(len(x_max)):
+        peak_coords[i] = [x_max[i], y_max[i]]
+    fringe_spacing = np.zeros(len(x_max)-1)
+    for j in range(len(x_max)-1):
+        fringe_spacing[j] = x_max[j+1]-x_max[j]    
+    print("Fringe spacings: ", fringe_spacing)
+    print(f"Average fringe spacing is {np.average(fringe_spacing):4.3f} mm")
+if FIND_TROUGHS:
+    x_min, y_min = find_minima(data)
+    
 if LINEAR and file_dimension == 2:
     define_error_plotting(file_dimension)
     fit_values = False
@@ -596,7 +608,7 @@ if LINEAR and file_dimension == 2:
 
 elif not LINEAR and file_dimension == 2:
     if not ATTEMPT_FIT:
-        print("!")
+        print("Fit not attempted")
         define_error_plotting(file_dimension)
         fit_values = False
         plot_data(data, fit_values)
@@ -643,11 +655,6 @@ else:
     print("This code works with data and uncertainties in up to 4 columns.")
     sys.exit()
 
-if FIND_PEAKS:
-    x_max, y_max = find_maxima(data)
-    
-if FIND_TROUGHS:
-    x_min, y_min = find_minima(data)
 
 
 
