@@ -52,4 +52,5 @@ OLDEST TO NEWEST:
 
 'Plotting_mega.py' - A nice general purpose piece of code for data plotting. Handles 2D data with 1 or both uncertainties, linear or non-linear, and provides curve-fitting and chi-squared calculations.
                      Functionalities like peak-finding have been and will be added as required.
+                     12/11/24 - Data smoothing functionality for noise added in two modes: rolling average and gaussian convolution
                      Credit to Lukas Wystemp for the outline and idea.
