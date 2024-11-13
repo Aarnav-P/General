@@ -1,7 +1,7 @@
 # %% Globals
 
-FILES = ['2.txt'] 
-DELIMITER = ';'
+FILES = ['inv_sq.csv'] 
+DELIMITER = ','
 SKIPHEADER = 1 # 1 for yes, 0 for no
 # Set Data Limits in xdata
 TRUNCATE_DATA_X = False
@@ -16,12 +16,15 @@ DATA_Y_RANGE_HIGH = 2
 # TODO: make it so this program can be imported into another script where the analysis is
 # done separately, and the relevant parameters are exported and written into a file
 ANALYSE_FIT = True
-
+#TODO: Figure out why there are two plotting functions, see if we can roll it into 1
 # Plot specification
-PLOT_NAME = 'Peaks '
-NAME_OF_FIGURE_DATA = 'Peaks x_mm' # Saves as
-MARKERSIZE = 1
-
+SAVE_FIG = False
+PLOT_NAME = 'Variation of measured power with temperature'
+NAME_OF_FIGURE_DATA = 'sb_cte' # Saves as
+MARKERSIZE = 0
+CAPSIZE = 1
+ERRORSCALING = 10 # If errors are too small, they can be scaled for visibility
+# NOTE: This is a purely visual change and does not affect fitting routines.
 PLOT_X_LIMITS = False
 PLOT_Y_LIMITS = False
 X_LIM_LOWER = 9
@@ -29,21 +32,21 @@ X_LIM_HIGHER = 10
 Y_LIM_LOWER = 0.001
 Y_LIM_HIGHER = 0.002
 
-X_LABEL = "x /mm"
-Y_LABEL = "Intensity /arb. units"
+X_LABEL = r"$(T-T_0)^4 \, (K^4)$"
+Y_LABEL = r"$\ln(P_m) $ (mV)"
 
 # Nature of the data
-LINEAR = False # will automatically attempt fit; will error unless true linear
+LINEAR = True # will automatically attempt fit; will error unless true linear
 
 # Non linear fits
 ATTEMPT_FIT = False # Fitting can be attempted with two parameters; Write function() first
-PARAMETER_ESTIMATE = [80, 5]
+PARAMETER_ESTIMATE = [1, 4, 1]
 
 # Find peaks/troughs
-DATA_SMOOTHING = True
+DATA_SMOOTHING = False
 PROCESS = "Gaussian" #Options are Gaussian and Rolling_average
 WINDOW_SIZE = 3
-FIND_PEAKS = True
+FIND_PEAKS = False
 FIND_TROUGHS = False
 PROMINENCE = 5
 
@@ -72,9 +75,7 @@ def read_and_check_files(validated_files):
     except FileNotFoundError:
         print(f"Error: the file {validated_files[0]} could not be found. Check spelling")
         sys.exit()
-        
-    input_file = np.delete(input_file, 0, axis=1)
-    print("data read has been altered for this script")        
+               
     if input_file.shape[1] == 2:
         # Handle (x, y) format
         file_dimension = 2
@@ -104,8 +105,6 @@ def read_and_check_files(validated_files):
             # Read data from file
             input_file = np.genfromtxt(file_name, delimiter = DELIMITER,
                                        skip_header = 0)
-            print("data read has been altered for this script")
-            input_file = np.delete(input_file, 0, axis=1)
             data = np.vstack((data, input_file))
 
         except FileNotFoundError:
@@ -183,22 +182,22 @@ def truncate(data):
         
         data = data[indices_to_keep]
         
-    print("data truncated")
+    if TRUNCATE_DATA_X or TRUNCATE_DATA_Y:print("data truncated")
     return data
 
 def plot_data(data, fit_values):
     
     sns.set_style("darkgrid")
     # Plot data points
-    if LINEAR:
+    if LINEAR and file_dimension == 2:
         fig, (ax, ax_residuals) = plt.subplots(2, 1, figsize=(8, 8),
                                                gridspec_kw={'height_ratios': [3, 1]})
-        ax.errorbar(data[:, 0], data[:, 1], fmt='x', xerr = X_ERR, yerr = Y_ERR,
-                    markersize = MARKERSIZE, label="Measured Data", color='#6c5b7b')
-    else:
+        ax.errorbar(data[:, 0], data[:, 1], fmt='o', xerr = X_ERR, yerr = Y_ERR,
+                    markersize = MARKERSIZE, capsize = CAPSIZE, label="Measured Data", color='coral')
+    elif not LINEAR:
         fig, ax = plt.subplots(1,1)
-        ax.errorbar(data[:, 0], data[:, 1], yerr=data[:, 2], fmt='x', alpha = 0.75, 
-                      markersize=MARKERSIZE, label='Measured data', color='orangered')
+        ax.errorbar(data[:, 0], data[:, 1], yerr=data[:, 2], fmt='o', alpha = 0.75, 
+                      markersize=MARKERSIZE, capsize = CAPSIZE, label='Measured data', color='coral')
     if FIND_PEAKS:
         ax.scatter(peak_coords[:,0], peak_coords[:,1], marker = 'P', 
                    s = MARKERSIZE+10, color = 'blue', label='Identified peaks')            
@@ -208,15 +207,17 @@ def plot_data(data, fit_values):
         None
 
     if LINEAR and (file_dimension == 3 or file_dimension == 4):
-        fig, (ax, ax_residuals) = plt.subplots(2, 1, figsize=(8, 8), gridspec_kw={'height_ratios': [3, 1]})
-        ax.errorbar(data[:, 0], data[:, 1], fmt='x', xerr = X_ERR, yerr = Y_ERR, markersize = MARKERSIZE, label="Data values", color='#6c5b7b')
+        fig, (ax, ax_residuals) = plt.subplots(2, 1, figsize=(8, 6), gridspec_kw={'height_ratios': [3, 1]})
+        ax.errorbar(data[:, 0], data[:, 1], fmt='x',xerr = X_ERR*ERRORSCALING, yerr = Y_ERR*ERRORSCALING,
+                    capsize = CAPSIZE, markersize = MARKERSIZE, elinewidth = 1, label="Data values", color='BLACK')    
         ax.plot(data[:,0], fit_values, label = "Fit function", color = '#355c7d')
         
         residuals = data[:,1] - fit_values  # Compute residuals
-        ax_residuals.errorbar(data[:,0], residuals, yerr=data[:,3], fmt='x', color='black')
+        ax_residuals.errorbar(data[:,0], residuals, yerr=data[:,3], fmt='x', color='black',
+                              elinewidth = 1, capsize = 5)
         ax_residuals.plot(data[:,0], 0 * data[:,0], color='red')
         ax_residuals.grid(True)
-        ax_residuals.set_title('Residuals', fontsize=14)
+        ax_residuals.set_title('Residuals', fontsize=12)
     
         # Adjust spacing between subplots
         fig.subplots_adjust(hspace=0.3)
@@ -248,11 +249,14 @@ def plot_data(data, fit_values):
 
 
 
-    fig.savefig(NAME_OF_FIGURE_DATA, dpi = 300)
+    if SAVE_FIG:
+        fig.savefig(NAME_OF_FIGURE_DATA, dpi = 400)
     print("print")
     plt.show()
     print("display")
     
+    if ERRORSCALING != 1:
+        print(f"Uncertainties have been scaled by {ERRORSCALING}x for visibility.")
     return None
 
 def chi_squared_function(x_data, y_data, y_uncertainties, parameters):
@@ -272,64 +276,85 @@ def chi_squared_function(x_data, y_data, y_uncertainties, parameters):
 def plot_linear_data(data, parameter_uncertainties):
     figure = plt.figure(figsize=(8, 6))
 
-    axes_main_plot = figure.add_subplot(211)
+    ax_main_plot = figure.add_subplot(211)
 
-    axes_main_plot.errorbar(data[:,0], data[:,1], yerr=data[:,2],
-                            fmt='x', color='black')
-    axes_main_plot.plot(data[:,0], linear_function(parameters, data[:,0]),
-                        color='red')
-    axes_main_plot.grid(True)
-    axes_main_plot.set_title(PLOT_NAME, fontsize=14)
-    axes_main_plot.set_xlabel(X_LABEL)
-    axes_main_plot.set_ylabel(Y_LABEL)
+    ax_main_plot.errorbar(data[:,0], data[:,1], yerr=data[:,2]*ERRORSCALING, fmt='x', label = "Measured Data",
+                            color='black', markersize = MARKERSIZE, capsize = CAPSIZE,
+                            elinewidth=1)
+    ax_main_plot.plot(data[:,0], linear_function(parameters, data[:,0]),
+                        color='#355c7d', lw=1, label = "Fit function")
     # Fitting details
     chi_squared = chi_squared_function(data[:,0], data[:,1], data[:,2],
                                        parameters)
     degrees_of_freedom = len(data[:,0]) - 2
     reduced_chi_squared = chi_squared / degrees_of_freedom
 
-    axes_main_plot.annotate((r'$\chi^2$ = {0:4.2f}'.
+    ax_main_plot.annotate((r'$\chi^2$ = {0:4.2f}'.
                              format(chi_squared)), (1, 0), (-60, -35),
                             xycoords='axes fraction', va='top',
                             textcoords='offset points', fontsize='10')
-    axes_main_plot.annotate(('Degrees of freedom = {0:d}'.
+    ax_main_plot.annotate(('Degrees of freedom = {0:d}'.
                              format(degrees_of_freedom)), (1, 0), (-147, -55),
                             xycoords='axes fraction', va='top',
                             textcoords='offset points', fontsize='10')
-    axes_main_plot.annotate((r'Reduced $\chi^2$ = {0:4.2f}'.
+    ax_main_plot.annotate((r'Reduced $\chi^2$ = {0:4.2f}'.
                              format(reduced_chi_squared)), (1, 0), (-104, -70),
                             xycoords='axes fraction', va='top',
                             textcoords='offset points', fontsize='10')
-    axes_main_plot.annotate('Fit: $y=mx+c$', (0, 0), (0, -35),
+    ax_main_plot.annotate('Fit: $y=mx+c$', (0, 0), (0, -35),
                             xycoords='axes fraction', va='top',
                             textcoords='offset points')
-    axes_main_plot.annotate(('m = {0:6.4e}'.format(parameters[0])), (0, 0),
+    ax_main_plot.annotate(('m = {0:6.4e}'.format(parameters[0])), (0, 0),
                             (0, -55), xycoords='axes fraction', va='top',
                             textcoords='offset points', fontsize='10')
-    axes_main_plot.annotate(('± {0:6.4e}'.format(parameter_uncertainties[0])),
+    ax_main_plot.annotate(('± {0:6.4e}'.format(parameter_uncertainties[0])),
                             (0, 0), (100, -55), xycoords='axes fraction',
                             va='top', fontsize='10',
                             textcoords='offset points')
-    axes_main_plot.annotate(('c = {0:6.4e}'.format(parameters[1])), (0, 0),
+    ax_main_plot.annotate(('c = {0:6.4e}'.format(parameters[1])), (0, 0),
                             (0, -70), xycoords='axes fraction', va='top',
-                            textcoords='offset points', fontsize='10')
-    axes_main_plot.annotate(('± {0:6.4e}'.format(parameter_uncertainties[1])),
+                           textcoords='offset points', fontsize='10')
+    ax_main_plot.annotate(('± {0:6.4e}'.format(parameter_uncertainties[1])),
                             (0, 0), (100, -70), xycoords='axes fraction',
                             textcoords='offset points', va='top',
                             fontsize='10')
     # Residuals plot
     residuals = data[:,1] - linear_function(parameters, data[:,0])
-    axes_residuals = figure.add_subplot(414)
-    axes_residuals.errorbar(data[:,0], residuals, yerr=data[:,2],
-                            fmt='x', color='black')
-    axes_residuals.plot(data[:,0], 0 * data[:,0], color='red')
-    axes_residuals.grid(True)
-    axes_residuals.set_title('Residuals', fontsize=14)
+    ax_residuals = figure.add_subplot(414)
+    ax_residuals.errorbar(data[:,0], residuals, yerr=data[:,2],
+                            fmt='x', color='black', capsize = 5,
+                            elinewidth = 1)
+    ax_residuals.plot(data[:,0], 0 * data[:,0], color='red')
+    ax_residuals.grid(True)
+    ax_residuals.set_title('Residuals', fontsize=14)
+    
+    # Set axis labels
+    ax_main_plot.set_xlabel(X_LABEL)
+    ax_main_plot.set_ylabel(Y_LABEL)
+    
+    # Add legend
+    ax_main_plot.legend(loc='upper left', shadow=True, edgecolor='saddlebrown')
 
+    # Set title
+    ax_main_plot.set_title(PLOT_NAME, fontweight='bold', fontsize=14)
 
-    plt.savefig(NAME_OF_FIGURE_DATA)
+    # Enable grid
+    ax_main_plot.grid(True, linestyle=(0, (3, 5, 1, 5)), linewidth=0.5, color='grey')
+    
+    # Outline axes
+    ax_main_plot.spines['right'].set_color((.6, .6, .6))
+    ax_main_plot.spines['top'].set_color((.6, .6, .6))
+    ax_main_plot.spines['left'].set_color((0, 0, 0))
+    ax_main_plot.spines['bottom'].set_color((0, 0, 0))
+    
+    print("print")
+    if SAVE_FIG:
+        plt.savefig(NAME_OF_FIGURE_DATA, dpi = 400)
     plt.show()
-
+    print("display")
+    if ERRORSCALING != 1:
+        print(f"Uncertainties have been scaled by {ERRORSCALING}x for visibility.")
+    
 def define_error_plotting(file_dimension):
     global Y_ERR
     global X_ERR
@@ -370,8 +395,8 @@ def linear_fitting_procedure(data):
               / repeated_term)
     offset_uncertainty = np.sqrt(np.sum(data[:,0]**2 * weights) / repeated_term)
     
-    print(f"Gradient: {slope:.5g} +- {slope_uncertainty:.5g}")
-    print(f"Intercept: {offset:.5g} +- {offset_uncertainty:.5g}")
+    print(f"Gradient: {slope:.10g} +- {slope_uncertainty:.10g}")
+    print(f"Intercept: {offset:.10g} +- {offset_uncertainty:.10g}")
     
     return (np.array([slope, offset]), np.array([slope_uncertainty,
                                                  offset_uncertainty]))
@@ -384,9 +409,9 @@ def linear_function_2(x, m, c):
 
     return m*x + c
 
-def function(x_data, parameter):
+def function(x_data, a, y, b):
     
-    return 
+    return a*(x_data**y) + b
 
 
 def fit_function(data, file_dimension):
@@ -397,7 +422,7 @@ def fit_function(data, file_dimension):
                                                      p0=PARAMETER_ESTIMATE,
                                                      sigma=data[:,2],
                                                      absolute_sigma=True)
-        fit_values = function(data[:,0], fit_parameters[0], fit_parameters[1])
+        fit_values = function(data[:,0], fit_parameters[0], fit_parameters[1], fit_parameters[2])
     
     elif ATTEMPT_FIT and file_dimension == 2:
         try:
@@ -562,7 +587,7 @@ def smoothing(data, PROCESS):
 def analyse_fit(pars, par_unc):
     current_analysis = "Stefan Boltzmann constant"
     if ANALYSE_FIT == True:
-        print("The current analysis routine is for:", current_analysis)
+        print("\nThe current analysis routine is for:", current_analysis)
         r_CN = 0.01 
         r_D = 0.0125
         R = 0.20
@@ -577,10 +602,9 @@ def analyse_fit(pars, par_unc):
 data, file_dimension = read_and_check_files(FILES)
 # non standard data processing goes here
 # CHECK THIS BEFORE TRANSFERRING CODE OVER
-print("This script has additional modifications")
-standard_uncertainty = 0.1
-new_column = np.full((data.shape[0], 1), standard_uncertainty)
-data = np.hstack((data, new_column))
+#print("This script has additional modifications")
+
+# Normal data processing continues
 data = clean_data(data, file_dimension)
 data = truncate(data)
 
